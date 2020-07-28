@@ -311,3 +311,99 @@ func TestSendMessageWithDelay(t *testing.T) {
 
 	cleanup(t)
 }
+
+func TestReceiveMessageWithTimeout(t *testing.T) {
+	queueName := "test"
+	message1 := "blah1"
+	message2 := "blah2"
+
+	err := r.CreateQueue(queueName)
+	if err != nil {
+		t.Fatalf("could not create queue: %v", err)
+	}
+
+	_, err = r.SendMessage(queueName, message1)
+	if err != nil {
+		t.Fatalf("could not send message: %v", err)
+	}
+
+	_, err = r.SendMessage(queueName, message2)
+	if err != nil {
+		t.Fatalf("could not send message: %v", err)
+	}
+
+	rx, err := r.ReceiveMessageWithTimeout(queueName, 2)
+	if err != nil {
+		t.Fatalf("could not receive message: %v", err)
+	}
+
+	if rx.Message != message1 {
+		t.Fatalf("received message before delay")
+	}
+
+	rx, err = r.ReceiveMessageWithTimeout(queueName, 1)
+	if err != nil {
+		t.Fatalf("could not receive message: %v", err)
+	}
+
+	if rx.Message != message2 {
+		t.Fatalf("received message before delay")
+	}
+
+	rx, err = r.ReceiveMessageWithTimeout(queueName, 1)
+	if err != nil {
+		t.Fatalf("could not receive message: %v", err)
+	}
+
+	if rx != nil {
+		t.Fatalf("all message should be invisible")
+	}
+
+	time.Sleep(time.Second + 10*time.Millisecond)
+	rx, err = r.ReceiveMessageWithTimeout(queueName, 2)
+	if err != nil {
+		t.Fatalf("could not receive message: %v", err)
+	}
+
+	if rx.Message != message2 {
+		t.Fatalf("received message before delay")
+	}
+
+	time.Sleep(time.Second + 10*time.Millisecond)
+	rx, err = r.ReceiveMessageWithTimeout(queueName, 1)
+	if err != nil {
+		t.Fatalf("could not receive message: %v", err)
+	}
+
+	if rx.Message != message1 {
+		t.Fatalf("received message before delay")
+	}
+
+	time.Sleep(time.Second + 10*time.Millisecond)
+	rx, err = r.PopMessage(queueName)
+	if err != nil {
+		t.Fatalf("could not pop message: %v", err)
+	}
+
+	if rx.Message != message2 {
+		t.Fatalf("received message before delay")
+	}
+
+	rx, err = r.PopMessage(queueName)
+	if err != nil {
+		t.Fatalf("could not pop message: %v", err)
+	}
+
+	if rx.Message != message1 {
+		t.Fatalf("received message before delay")
+	}
+
+	att, err :=  r.GetQueueAttributes(queueName)
+	if err != nil {
+		t.Fatalf("could not get queue attributes")
+	}
+	if att.Messages != 0 {
+		t.Fatalf("queue should be empty")
+	}
+	cleanup(t)
+}
